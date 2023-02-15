@@ -109,6 +109,30 @@ void liberarMemoria(Jugadores *jugadores, Jugadas *jugadas) {
         free(jugadas);
 }
 
+// tableroInicial: void -> char**;
+// Creando el tablero inicial en forma de doble puntero.
+char** tableroInicial() {
+    char **tablero = malloc(sizeof(char *) * 8);
+
+    for (int i = 0; i < 8; i++) {
+        tablero[i] = malloc(sizeof(char) * 8);
+    }
+
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            if ((i == 3 && j == 3) || (i == 4 && j == 4)) {
+                tablero[i][j] = 'B';
+            } else if ((i == 3 && j == 4) || (i == 4 && j == 3)) {
+                tablero[i][j] = 'N';
+            } else {
+                tablero[i][j] = 'X';
+            }
+        }
+    }
+
+    return tablero;
+}
+
 //leerArchivoEntrada: char* ->
 // Leer el archivo para desestructurar la informacion de la partida.
 int leerArchivoEntrada(char *nombreArchivo) {
@@ -123,6 +147,7 @@ int leerArchivoEntrada(char *nombreArchivo) {
     Jugadores jugadores = leerJugadores(archivo);
     Jugadas *jugadas = leerJugadas(archivo);
     
+    char **tablero = tableroInicial();
 
     // Liberacion de los espacios de memoria asignados.
     liberarMemoria(&jugadores, jugadas);
