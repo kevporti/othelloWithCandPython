@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef struct {
     char color;
@@ -21,6 +22,23 @@ typedef struct {
     Jugador *jugadorUno;
     Jugador *jugadorDos;
 } Jugadores;
+
+typedef struct {
+    bool jugadaValida;
+    char color, *error;
+    Jugadas *fichasCapturadas;
+} Resultado;
+
+// eliminarSaltoDeLinea: char* -> char*;
+// Funcion auxiliar para eliminar los saltos de linea indeseados.
+char* eliminarSaltoDeLinea(char* linea) {
+    int len = strlen(linea);
+    if (len > 0 && linea[len - 1] == '\n') {
+        linea[len - 1] = '\0';
+    }
+
+    return linea;
+}
 
 // leerJugadores: FILE* -> Jugadores;
 // Desestructurando los jugadores del archivo. Recibe a una variable de tipo 'FILE*', lee las primeras dos lineas y las desestructura para separar
@@ -77,8 +95,10 @@ Jugadas* leerJugadas(FILE *archivo) {
         (jugadas->numeroDeJugadas % 2 == 0) ? (jugada->color = colorInicial) : (jugada->color = colorOpuesto);
         // Cambiando el contenido de lineTemp si es un paso de turno.
         if (*lineTemp == '\n') {
-            lineTemp = "SL\n";
+            lineTemp = "SL";
         }
+        lineTemp = eliminarSaltoDeLinea(lineTemp);
+        
         strcpy(jugada->movimiento, lineTemp);
     
     
@@ -107,6 +127,55 @@ void liberarMemoria(Jugadores *jugadores, Jugadas *jugadas) {
     }
         free(jugadas->guardadoJugadas);
         free(jugadas);
+}
+
+// jugadaDentroTablero: Jugada -> ;
+// Validar que la jugada hecha este dentro de los parametros delimitados por el tablero.
+Resultado* jugadaDentroTablero(Jugada jugada, Resultado **resultado) {
+    int indiceFilaJugada = (atoi(&jugada.movimiento[1]) - 1);
+    int indiceColumnaJugada = (jugada.movimiento[0] - 'A');
+
+    if ((indiceFilaJugada >= 8) || (indiceFilaJugada < 0) || (indiceColumnaJugada >= 8) || (indiceColumnaJugada < 0)) {
+        printf("Error con la jugada: %s\n", jugada.movimiento);
+        (*resultado)->jugadaValida = false;
+        (*resultado)->color = jugada.color;
+        sprintf((*resultado)->error, "La jugada %s esta fuera del tablero y por lo tanto es una jugada invalida.", jugada.movimiento);
+    } else {
+        (*resultado)->jugadaValida = true;
+    }
+    return *resultado;
+}
+
+// simularJuego: char** -> Jugadas* -> ;
+// Maneja la simulacion del juego. Si las jugadas son validas, las aplica.
+void simularJuego(char*** tablero, Jugadas* jugadas) {
+    int i = 0;
+    Resultado *resultado = malloc(sizeof(Resultado));
+
+    while (i < jugadas->numeroDeJugadas && (i == 0 || resultado->jugadaValida == true)) {
+        Jugada jugada = jugadas->guardadoJugadas[i];
+
+        if (strcmp(jugada.movimiento, "SL") != 0) {
+            // Validar que la jugada propuesta esta dentro del tablero.
+            resultado = jugadaDentroTablero(jugada, &resultado);
+
+            if (resultado->jugadaValida == false) {
+                continue;
+            }
+            
+            // Validar que la jugada no este repetida, o sea, que no haya ya una ficha en esa posicion.
+
+            // Aplicar las reglas de tener fichas enemigas alrededor y, a su vez, que en esa misma direccion
+            // haya una ficha aliada que encierre las enemigas.
+
+            // Aplicar la jugada al tablero.
+        } else {
+            
+        }
+        
+        i++;
+    }
+    
 }
 
 // tableroInicial: void -> char**;
@@ -144,10 +213,14 @@ int leerArchivoEntrada(char *nombreArchivo) {
         return -1;
     }
 
+    // Leer informacion del archivo.
     Jugadores jugadores = leerJugadores(archivo);
     Jugadas *jugadas = leerJugadas(archivo);
     
     char **tablero = tableroInicial();
+
+    simularJuego(&tablero, jugadas);
+
 
     // Liberacion de los espacios de memoria asignados.
     liberarMemoria(&jugadores, jugadas);
