@@ -136,7 +136,6 @@ void liberarMemoria(Jugadores *jugadores, Jugadas *jugadas) {
 // Validar que la jugada hecha este dentro de los parametros delimitados por el tablero.
 Resultado* jugadaDentroTablero(Jugada jugada, Resultado **resultado) {
     if ((jugada.indiceFila >= 8) || (jugada.indiceFila < 0) || (jugada.indiceColumna >= 8) || (jugada.indiceColumna < 0)) {
-        printf("Error con la jugada: %s\n", jugada.movimiento);
         (*resultado)->jugadaValida = false;
         (*resultado)->color = jugada.color;
         sprintf((*resultado)->error, "La jugada %s esta fuera del tablero y por lo tanto es una jugada invalida.", jugada.movimiento);
@@ -150,7 +149,6 @@ Resultado* jugadaDentroTablero(Jugada jugada, Resultado **resultado) {
 // Controlar que la posicion de la jugada no este ocupada.
 Resultado* jugadaRepetida(char **tablero, Jugada jugada, Resultado **resultado) {
     if (tablero[jugada.indiceFila][jugada.indiceColumna] != 'X') {
-        printf("ERROR con la jugada %s.\n", jugada.movimiento);
         (*resultado)->jugadaValida = false;
         (*resultado)->color = jugada.color;
         (*resultado)->error = "La posicion de la jugada ya esta ocupada.";
@@ -237,7 +235,6 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
     }
 
     if (!hayEnemigoAlrededor) {
-        printf("ERROR con la jugada %s.\n", jugada.movimiento);
         (*resultado)->jugadaValida = false;
         (*resultado)->color = jugada.color;
         (*resultado)->error = "No hay fichas enemigos alrededor de la jugada realizada.";
@@ -246,7 +243,6 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
     }
 
     if (!hayFichasEncerradas) {
-        printf("ERROR con la jugada %s.\n", jugada.movimiento);
         (*resultado)->jugadaValida = false;
         (*resultado)->color = jugada.color;
         (*resultado)->error = "Las fichas enemigas no se encierran con una ficha aliada.";
@@ -281,7 +277,7 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
  // controlSalteoJugada:
  // Controlar que el salteo de jugada haya sido la unica opcion para avanzar con el juego.
 Resultado* controlSalteoJugada(char **tablero, char colorJugador, Resultado **resultado) {
-    Resultado *posibleResultado;
+    Resultado *posibleResultado = malloc(sizeof(Resultado));
     bool jugadaPosible = false;
 
     int fila = 0;
@@ -318,12 +314,10 @@ Resultado* controlSalteoJugada(char **tablero, char colorJugador, Resultado **re
 
                             // Intentando la jugada.
                             posibleResultado = controlJugadaValida(tablero, posibleJugada, &posibleResultado);
-                printf("\nhola\n");
-                printf("%d\n", posibleResultado->jugadaValida);
+
                             // Si la jugada es valida, se encontro una posible jugada y el salto de turno es un error.
                             if (posibleResultado->jugadaValida == true) {
                                 // Preparando la devolucion de la funcion.
-                                printf("ERROR con el salto de turno.");
                                 (*resultado)->jugadaValida = false;
                                 (*resultado)->color = colorJugador;
                                 (*resultado)->error = "Se ha encontrado una posible jugada.";
@@ -331,6 +325,7 @@ Resultado* controlSalteoJugada(char **tablero, char colorJugador, Resultado **re
                                 // Evitar seguir probando posibles jugadas.
                                 jugadaPosible = true;
                             }
+                            free(posibleJugada.movimiento);
                         }
                         j += 1;
                     }
@@ -343,11 +338,23 @@ Resultado* controlSalteoJugada(char **tablero, char colorJugador, Resultado **re
     }
     // Return de la devolucion si la funcion encontro posible jugada.
     if (jugadaPosible) {
+        // Liberando la memoria recibida por probar jugadas.
+        for (int i = 0; i < posibleResultado->fichasCapturadas->numeroDeJugadas; i++) {
+            free(&posibleResultado->fichasCapturadas->guardadoJugadas[i]);
+        }
+        free(posibleResultado->fichasCapturadas->guardadoJugadas);
+        free(posibleResultado->fichasCapturadas);
+        free(posibleResultado);
+        
         return *resultado;
     }
 
     // Sino, return del resultado con la jugada validada.
     (*resultado)->jugadaValida = true;
+
+    // Antes de returnear, liberar la memoria del posibleResultado.
+    free(posibleResultado);
+
     return *resultado;
 }
 
