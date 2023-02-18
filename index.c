@@ -6,6 +6,7 @@
 typedef struct {
     char color;
     char *movimiento;
+    int indiceFila, indiceColumna;
 } Jugada;
 
 typedef struct {
@@ -100,6 +101,8 @@ Jugadas* leerJugadas(FILE *archivo) {
         lineTemp = eliminarSaltoDeLinea(lineTemp);
         
         strcpy(jugada->movimiento, lineTemp);
+        jugada->indiceFila = (atoi(&jugada->movimiento[1]) - 1);
+        jugada->indiceColumna = (jugada->movimiento[0] - 'A');
     
     
         jugadas->guardadoJugadas = realloc(jugadas->guardadoJugadas, sizeof(Jugada) * (jugadas->numeroDeJugadas + 1));
@@ -132,10 +135,7 @@ void liberarMemoria(Jugadores *jugadores, Jugadas *jugadas) {
 // jugadaDentroTablero: Jugada -> ;
 // Validar que la jugada hecha este dentro de los parametros delimitados por el tablero.
 Resultado* jugadaDentroTablero(Jugada jugada, Resultado **resultado) {
-    int indiceFilaJugada = (atoi(&jugada.movimiento[1]) - 1);
-    int indiceColumnaJugada = (jugada.movimiento[0] - 'A');
-
-    if ((indiceFilaJugada >= 8) || (indiceFilaJugada < 0) || (indiceColumnaJugada >= 8) || (indiceColumnaJugada < 0)) {
+    if ((jugada.indiceFila >= 8) || (jugada.indiceFila < 0) || (jugada.indiceColumna >= 8) || (jugada.indiceColumna < 0)) {
         printf("Error con la jugada: %s\n", jugada.movimiento);
         (*resultado)->jugadaValida = false;
         (*resultado)->color = jugada.color;
@@ -146,14 +146,233 @@ Resultado* jugadaDentroTablero(Jugada jugada, Resultado **resultado) {
     return *resultado;
 }
 
+// jugadaRepetida: char** -> Jugada -> Resultado** -> Resultado*;
+// Controlar que la posicion de la jugada no este ocupada.
+Resultado* jugadaRepetida(char **tablero, Jugada jugada, Resultado **resultado) {
+    if (tablero[jugada.indiceFila][jugada.indiceColumna] != 'X') {
+        printf("ERROR con la jugada %s.\n", jugada.movimiento);
+        (*resultado)->jugadaValida = false;
+        (*resultado)->color = jugada.color;
+        (*resultado)->error = "La posicion de la jugada ya esta ocupada.";
+    } else {
+        (*resultado)->jugadaValida = true;
+    }
+
+    return *resultado;
+}
+
+// controlJugadaValida: char** -> Jugada -> Resultado** -> Resultado*;
+// Controlar que la jugada realizada coincide con tener al menos una ficha enemiga alrededor suyo y, que a su vez,
+// en esa direccion que se encuentra la ficha enemiga, haya una ficha aliada que encierre la/las enemigas.
+Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **resultado) {
+    char colorOpuesto;
+    bool hayEnemigoAlrededor = false, hayFichasEncerradas = false;
+
+    // Inicializando el almacenamiento de las posibles fichas enemigas encerradas por una aliada.
+    Jugadas *fichasEncerradas = malloc(sizeof(Jugadas));
+    fichasEncerradas->numeroDeJugadas = 0;
+    fichasEncerradas->guardadoJugadas = malloc(sizeof(Jugada));
+
+    (jugada.color == 'N') ? (colorOpuesto = 'B') : (colorOpuesto = 'N');
+
+    for (int i = -1; i <= 1 ; i++) {
+        for (int j = -1; j <= 1; j++) {
+            // Sacando el control en la posicion de la jugada.
+            if (i != 0 || j!= 0) {
+                int indiceFilaVerificar = jugada.indiceFila + i;
+                int indiceColumnaVerificar = jugada.indiceColumna + j;
+
+                // Controlando que las jugadas a verificar no se salgan del tablero.
+                bool fueraDelTablero = (indiceFilaVerificar >= 8) || (indiceFilaVerificar < 0) || (indiceColumnaVerificar >= 8) || (indiceColumnaVerificar < 0);
+                
+                //Inicializando el almacenamiento de las fichas enemigas.
+                Jugadas *fichasEnemigas = malloc(sizeof(Jugadas));
+                fichasEnemigas->numeroDeJugadas = 0;
+                fichasEnemigas->guardadoJugadas = malloc(sizeof(Jugada));
+                // Recorriendo los alrededores de la ficha del oponente para formar una linea (horizontal, vertical u oblicua).
+                while (!fueraDelTablero && tablero[indiceFilaVerificar][indiceColumnaVerificar] == colorOpuesto) {
+                    // Creando la ficha enemiga en forma de Jugada para poder guardarla.
+                    Jugada *fichaEnemiga = malloc(sizeof(Jugada));
+                    fichaEnemiga->indiceFila = indiceFilaVerificar;
+                    fichaEnemiga->indiceColumna = indiceColumnaVerificar;
+
+                    // Guardando la ficha enemiga en el almacenamiento de las fichas enemigas.
+                    fichasEnemigas->guardadoJugadas = realloc(fichasEnemigas->guardadoJugadas, sizeof(Jugada) * (fichasEnemigas->numeroDeJugadas + 1));
+                    fichasEnemigas->guardadoJugadas[fichasEnemigas->numeroDeJugadas] = *fichaEnemiga;
+                    fichasEnemigas->numeroDeJugadas += 1;
+
+                    // Avanzando de direccion.
+                    indiceFilaVerificar += i;
+                    indiceColumnaVerificar += j;
+
+                    // Controlando de nuevo por la condicion del loop.
+                    fueraDelTablero = (indiceFilaVerificar >= 8) || (indiceFilaVerificar < 0) || (indiceColumnaVerificar >= 8) || (indiceColumnaVerificar < 0);
+                }
+
+                // Controlando si hay una ficha enemiga alrededor.
+                if (fichasEnemigas->numeroDeJugadas != 0) {
+                    hayEnemigoAlrededor = true;
+
+                    // Controlando que haya una ficha aliada que encierre a las enemigas.
+                    if (!fueraDelTablero && tablero[indiceFilaVerificar][indiceColumnaVerificar] == jugada.color) {
+                        hayFichasEncerradas = true;
+
+                        // Guardando las fichas enemigas encerradas.
+                        fichasEncerradas->guardadoJugadas = realloc(fichasEncerradas->guardadoJugadas, sizeof(Jugada) * (fichasEncerradas->numeroDeJugadas + fichasEnemigas->numeroDeJugadas));
+                        for (int k = 0; k < fichasEnemigas->numeroDeJugadas; k++) {
+                            fichasEncerradas->guardadoJugadas[fichasEncerradas->numeroDeJugadas + k] = fichasEnemigas->guardadoJugadas[k];
+                        }
+                        fichasEncerradas->numeroDeJugadas += fichasEnemigas->numeroDeJugadas;
+                    } else {
+                        for (int k = 0; k < fichasEnemigas->numeroDeJugadas; k++) {
+                            free(&(fichasEnemigas->guardadoJugadas[k]));
+                        }
+                        
+                        free(fichasEnemigas->guardadoJugadas);
+                        free(fichasEnemigas);
+                    }
+                }
+            }
+        }
+    }
+
+    if (!hayEnemigoAlrededor) {
+        printf("ERROR con la jugada %s.\n", jugada.movimiento);
+        (*resultado)->jugadaValida = false;
+        (*resultado)->color = jugada.color;
+        (*resultado)->error = "No hay fichas enemigos alrededor de la jugada realizada.";
+
+        return *resultado;
+    }
+
+    if (!hayFichasEncerradas) {
+        printf("ERROR con la jugada %s.\n", jugada.movimiento);
+        (*resultado)->jugadaValida = false;
+        (*resultado)->color = jugada.color;
+        (*resultado)->error = "Las fichas enemigas no se encierran con una ficha aliada.";
+
+        return *resultado;
+    }
+
+    (*resultado)->jugadaValida = true;
+    (*resultado)->fichasCapturadas = fichasEncerradas;
+
+    return *resultado;
+}
+
+ // aplicarJugada: char** -> Jugada -> void;
+ // Dada la jugada ya validada, la aplica sobre el tablero cambiando de color las fichas enemigas encerradas.
+ void aplicarJugada(char **tablero, Jugada jugada, Resultado **resultado) {
+    // Movimiento recien hecho del jugador.
+    tablero[jugada.indiceFila][jugada.indiceColumna] = jugada.color;
+
+    // Cambiando de color las fichas enemigas encerradas.
+    for (int i = 0; i < (*resultado)->fichasCapturadas->numeroDeJugadas; i++) {
+        tablero[(*resultado)->fichasCapturadas->guardadoJugadas[i].indiceFila][(*resultado)->fichasCapturadas->guardadoJugadas[i].indiceColumna] = jugada.color;
+
+        // Liberando la memoria de las 'Jugada' structs.
+        free(&((*resultado)->fichasCapturadas->guardadoJugadas[i]));
+    }
+    // Liberando la memoria de la 'Jugadas' struct
+    free((*resultado)->fichasCapturadas->guardadoJugadas);
+    free((*resultado)->fichasCapturadas);
+ }
+
+ // controlSalteoJugada:
+ // Controlar que el salteo de jugada haya sido la unica opcion para avanzar con el juego.
+Resultado* controlSalteoJugada(char **tablero, char colorJugador, Resultado **resultado) {
+    Resultado *posibleResultado;
+    bool jugadaPosible = false;
+
+    int fila = 0;
+    // Doble loop para recorrer el tablero.
+    while (fila < 8 && !jugadaPosible) {
+        int columna = 0;
+        while (columna < 8 && !jugadaPosible) {
+            // Condicional para verificar solamente posiciones con fichas de los jugadores.
+            if (tablero[fila][columna] != 'X') {
+                // Doble loop para verificar jugadas alrededor de la ficha.
+                int i = -1;
+                while (i < 2 && !jugadaPosible) {
+                    int j = -1;
+                    while (j < 2 &&!jugadaPosible) {
+                        // Sumar/restar a los indices para verificar los alrededores.
+                        int indiceFilaVerificar = fila + i;
+                        int indiceColumnaVerificar = columna + j;
+
+                        // Verificando que las posiciones no se salgan del tablero.
+                        bool fueraDelTablero = (indiceFilaVerificar >= 8) || (indiceFilaVerificar < 0) || (indiceColumnaVerificar >= 8) || (indiceColumnaVerificar < 0);
+
+                        // De las jugadas del alrededor, dejando solo las casillas vacias ya que no se pueden tomar
+                        // en cuenta posibles jugadas en casillas ocupadas.
+                        if (!fueraDelTablero && tablero[indiceFilaVerificar][indiceColumnaVerificar] == 'X'){
+                            // Creando la jugada a verificar.
+                            Jugada posibleJugada;
+                            posibleJugada.color = colorJugador;
+                            posibleJugada.movimiento = malloc(sizeof(char) * 3);
+                            posibleJugada.movimiento[0] = indiceColumnaVerificar + 'A';
+                            posibleJugada.movimiento[1] = indiceFilaVerificar + '1';
+                            posibleJugada.movimiento[2] = '\0';
+                            posibleJugada.indiceFila = (atoi(&posibleJugada.movimiento[1]) - 1);
+                            posibleJugada.indiceColumna = (posibleJugada.movimiento[0] - 'A');
+
+                            // Intentando la jugada.
+                            posibleResultado = controlJugadaValida(tablero, posibleJugada, &posibleResultado);
+                printf("\nhola\n");
+                printf("%d\n", posibleResultado->jugadaValida);
+                            // Si la jugada es valida, se encontro una posible jugada y el salto de turno es un error.
+                            if (posibleResultado->jugadaValida == true) {
+                                // Preparando la devolucion de la funcion.
+                                printf("ERROR con el salto de turno.");
+                                (*resultado)->jugadaValida = false;
+                                (*resultado)->color = colorJugador;
+                                (*resultado)->error = "Se ha encontrado una posible jugada.";
+
+                                // Evitar seguir probando posibles jugadas.
+                                jugadaPosible = true;
+                            }
+                        }
+                        j += 1;
+                    }
+                    i += 1;
+                }
+            }
+            columna += 1;
+        }
+        fila += 1;
+    }
+    // Return de la devolucion si la funcion encontro posible jugada.
+    if (jugadaPosible) {
+        return *resultado;
+    }
+
+    // Sino, return del resultado con la jugada validada.
+    (*resultado)->jugadaValida = true;
+    return *resultado;
+}
+
 // simularJuego: char** -> Jugadas* -> ;
 // Maneja la simulacion del juego. Si las jugadas son validas, las aplica.
 void simularJuego(char*** tablero, Jugadas* jugadas) {
     int i = 0;
     Resultado *resultado = malloc(sizeof(Resultado));
-
-    while (i < jugadas->numeroDeJugadas && (i == 0 || resultado->jugadaValida == true)) {
+    resultado->jugadaValida = true;
+    while (i < jugadas->numeroDeJugadas && resultado->jugadaValida == true) {
         Jugada jugada = jugadas->guardadoJugadas[i];
+        
+        printf("  ABCDEFGH \n");
+        printf(" ---------- \n");
+        for (int j = 0; j < 8; j++) {
+            printf("%d|",j+1);
+            for (int k = 0; k < 8; k++) {
+                printf("%c", (*tablero)[j][k]);
+            }
+            printf("|%d\n",j+1);
+        }
+        printf(" ---------- \n");
+        printf("  ABCDEFGH \n\n");
+        printf("jugada: %s, color: %c\n\n", jugada.movimiento, jugada.color);
+        
 
         if (strcmp(jugada.movimiento, "SL") != 0) {
             // Validar que la jugada propuesta esta dentro del tablero.
@@ -162,18 +381,47 @@ void simularJuego(char*** tablero, Jugadas* jugadas) {
             if (resultado->jugadaValida == false) {
                 continue;
             }
-            
             // Validar que la jugada no este repetida, o sea, que no haya ya una ficha en esa posicion.
+            resultado = jugadaRepetida(*tablero, jugada, &resultado);
+
+            if (resultado->jugadaValida == false) {
+                continue;
+            }
 
             // Aplicar las reglas de tener fichas enemigas alrededor y, a su vez, que en esa misma direccion
             // haya una ficha aliada que encierre las enemigas.
-
-            // Aplicar la jugada al tablero.
-        } else {
+            resultado = controlJugadaValida(*tablero, jugada, &resultado);
             
+            if (resultado->jugadaValida == false){
+                continue;
+            }
+            
+            // Aplicar la jugada al tablero.
+            aplicarJugada(*tablero, jugada, &resultado);
+        } else {
+            // Controlar que no haya jugada posible mas que saltear el turno.
+            resultado = controlSalteoJugada(*tablero, jugada.color, &resultado);
+
+            if (resultado->jugadaValida == false) {
+                continue;
+            }
         }
+
+        printf("  ABCDEFGH \n");
+        printf(" ---------- \n");
+        for (int j = 0; j < 8; j++) {
+            printf("%d|",j+1);
+            for (int k = 0; k < 8; k++) {
+                printf("%c", (*tablero)[j][k]);
+            }
+            printf("|%d\n",j+1);
+        }
+        printf(" ---------- \n");
+        printf("  ABCDEFGH \n\n");
+        printf("\n---------------------------\n");
+
         
-        i++;
+        i += 1;
     }
     
 }
