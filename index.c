@@ -126,7 +126,6 @@ Jugadas* leerJugadas(FILE *archivo) {
         jugada->indiceFila = (atoi(&jugada->movimiento[1]) - 1);
         jugada->indiceColumna = (jugada->movimiento[0] - 'A');
     
-    
         jugadas->guardadoJugadas = realloc(jugadas->guardadoJugadas, sizeof(Jugada) * (jugadas->numeroDeJugadas + 1));
         // Almacenando todas las jugadas en una misma estructura y reestableciendo las variables para el Loop.
         jugadas->guardadoJugadas[jugadas->numeroDeJugadas] = *jugada;
@@ -289,10 +288,10 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
     return *resultado;
 }
 
- // aplicarJugada: char** -> Jugada -> void;
+ // aplicarJugada: char** -> Jugada -> Resultado** -> void;
  // Dada la jugada ya validada, la aplica sobre el tablero cambiando de color las fichas enemigas encerradas y asi completando
  // el turno del jugador.
- void aplicarJugada(char **tablero, Jugada jugada, Resultado **resultado) {
+void aplicarJugada(char **tablero, Jugada jugada, Resultado **resultado) {
     // Movimiento recien hecho del jugador.
     tablero[jugada.indiceFila][jugada.indiceColumna] = jugada.color;
 
@@ -306,7 +305,7 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
     // Liberando la memoria de la 'Jugadas' struct.
     free((*resultado)->fichasCapturadas->guardadoJugadas);
     free((*resultado)->fichasCapturadas);
- }
+}
 
  // controlSalteoJugada: char** -> char -> Resultado** -> Resultado*;
  // Controlar que el salteo de jugada haya sido la unica opcion para avanzar con el juego. Para ello hay que verificar que el jugador no
