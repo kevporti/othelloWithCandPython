@@ -1,3 +1,22 @@
+/*---------------- DISEÑO DE DATOS ----------------
+El TABLERO esta representado como un arreglo de arreglos de tipo char, siendo cada fila un arreglo de caracteres,
+y cada casilla siendo un caracter. Dentro de cada casilla se asigna 'X' si es una posicion vacia, o la inicial del
+color del jugador que tiene ficha en esa posicion ('B' o 'N').
+Los JUGADORES se representan cada uno con una estructura, donde se guarda el nombre del jugador (almacenado con
+memoria dinamica), y la inicial del color que tiene asignado en el juego ('B' o 'N').
+El conjunto de las JUGADAS se representa con una estructura custom que guarda la cantidad de jugadas y un arreglo
+de estructuras de tipo Jugada. Esta nueva estructura Jugada representa cada jugada leida del archivo. Aqui se guarda
+el movimiento realizado, el color que lo realizo, y los indices en fila y columna de la jugada realizada (Siendo A=0
+, B= 1,... el indice de la columna y el de las filas siendo el numero dado menos uno).
+El RESULTADO (creado para realizar un seguimiento de los resultados de la verificacion de reglas en cada jugada), esta
+representado con una estructura con varias banderas (con tipo booleano) de jugadaValida, partidaIncompleta, dobleSalto
+y partidaValida, con un puntero a una tipo de Jugadas para guardar las fichas encerradas cuando se realizan movmientos
+y con el seguimiento del color del jugador (con un tipo char), y el mensaje de error si es que hubo.
+La estructura Archivo esta creada para poder devolver a los Jugadores y las Jugadas, para poder crear
+funciones menos dependientes unas de otras. Tambien guarda si el archivo fue abierto correctamente o no.
+-------------------------------------------------
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,8 +93,9 @@ Jugadores* leerJugadores(FILE *archivo) {
     return jugadores;
 }
 
-// leerJugadas: FILE* -> Jugadas;
-// Desestructurando las lineas de jugadas hechas. Guardar las Jugada struct dentro de Jugadas->guardadoJugadas[].
+// leerJugadas: FILE* -> Jugadas*;
+// Desestructurando las lineas de jugadas hechas. Guardar cada Jugada struct dentro de Jugadas->guardadoJugadas formando un array.
+// Las jugadas que representan salto de turno se guardaran como "SL" para trabajar en el mismo formato que las jugadas normales.
 Jugadas* leerJugadas(FILE *archivo) {
     Jugadas *jugadas = malloc(sizeof(Jugadas));
     jugadas->numeroDeJugadas = 0;
@@ -88,13 +108,14 @@ Jugadas* leerJugadas(FILE *archivo) {
     (colorInicial == 'N') ? (colorOpuesto = 'B') : (colorOpuesto = 'N');
     fgetc(archivo);
 
-
+    // Recorriendo el resto del archivo hasta el final.
     while (getline(&lineTemp, &lineSize, archivo) != -1) {
         Jugada *jugada = malloc(sizeof(Jugada));
         jugada->movimiento = malloc(sizeof(char) * (lineSize + 1));
 
         // Estableciendo la jugada.
         (jugadas->numeroDeJugadas % 2 == 0) ? (jugada->color = colorInicial) : (jugada->color = colorOpuesto);
+
         // Cambiando el contenido de lineTemp si es un paso de turno.
         if (*lineTemp == '\n') {
             lineTemp = "SL";
@@ -107,7 +128,7 @@ Jugadas* leerJugadas(FILE *archivo) {
     
     
         jugadas->guardadoJugadas = realloc(jugadas->guardadoJugadas, sizeof(Jugada) * (jugadas->numeroDeJugadas + 1));
-        // Almacenando todas las jugadas en una misma estructura y seteando las variables para el Loop.
+        // Almacenando todas las jugadas en una misma estructura y reestableciendo las variables para el Loop.
         jugadas->guardadoJugadas[jugadas->numeroDeJugadas] = *jugada;
         jugadas->numeroDeJugadas++;
         lineTemp = NULL;
@@ -116,12 +137,11 @@ Jugadas* leerJugadas(FILE *archivo) {
     return jugadas;
 }
 
-// liberarMemoria: Jugadores* -> Jugadas* -> void;
+// liberarMemoria: Jugadores* -> Jugadas* -> Resultado* -> void;
 // Liberando la memoria obtenida dinamicamente de los jugadores y de las jugadas.
-void liberarMemoria(Jugadores *jugadores, Jugadas *jugadas) {
+void liberarMemoria(Jugadores *jugadores, Jugadas *jugadas, Resultado *resultado) {
     // Liberacion de memoria de los jugadores.
-    for (int i = 0; i < 2; i++)
-    {
+    for (int i = 0; i < 2; i++) {
         free(jugadores->jugadores[i].nombre);
         free(&(jugadores->jugadores[i]));
     }
@@ -133,11 +153,16 @@ void liberarMemoria(Jugadores *jugadores, Jugadas *jugadas) {
         free(jugadas->guardadoJugadas[i].movimiento);
         free(&jugadas->guardadoJugadas[i]);
     }
-        free(jugadas->guardadoJugadas);
-        free(jugadas);
+    free(jugadas->guardadoJugadas);
+    free(jugadas);
+
+    // Liberacion de memoria del resultado.
+    free(resultado->error);
+    free(resultado->fichasCapturadas->guardadoJugadas);
+    free(resultado->fichasCapturadas);
 }
 
-// jugadaDentroTablero: Jugada -> ;
+// jugadaDentroTablero: Jugada -> Resultado** -> Resultado*;
 // Validar que la jugada hecha este dentro de los parametros delimitados por el tablero.
 Resultado* jugadaDentroTablero(Jugada jugada, Resultado **resultado) {
     if ((jugada.indiceFila >= 8) || (jugada.indiceFila < 0) || (jugada.indiceColumna >= 8) || (jugada.indiceColumna < 0)) {
@@ -147,11 +172,12 @@ Resultado* jugadaDentroTablero(Jugada jugada, Resultado **resultado) {
     } else {
         (*resultado)->jugadaValida = true;
     }
+
     return *resultado;
 }
 
 // jugadaRepetida: char** -> Jugada -> Resultado** -> Resultado*;
-// Controlar que la posicion de la jugada no este ocupada.
+// Controlar que la posicion de la jugada no este ocupada, debido a que si lo esta, seria una jugada repetida.
 Resultado* jugadaRepetida(char **tablero, Jugada jugada, Resultado **resultado) {
     if (tablero[jugada.indiceFila][jugada.indiceColumna] != 'X') {
         (*resultado)->jugadaValida = false;
@@ -192,6 +218,7 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
                 Jugadas *fichasEnemigas = malloc(sizeof(Jugadas));
                 fichasEnemigas->numeroDeJugadas = 0;
                 fichasEnemigas->guardadoJugadas = malloc(sizeof(Jugada));
+
                 // Recorriendo los alrededores de la ficha del oponente para formar una linea (horizontal, vertical u oblicua).
                 while (!fueraDelTablero && tablero[indiceFilaVerificar][indiceColumnaVerificar] == colorOpuesto) {
                     // Creando la ficha enemiga en forma de Jugada para poder guardarla.
@@ -227,6 +254,7 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
                         }
                         fichasEncerradas->numeroDeJugadas += fichasEnemigas->numeroDeJugadas;
                     } else {
+                        // Liberando la memoria de las fichasEnemigas ya que no va a ser utilizada.
                         for (int k = 0; k < fichasEnemigas->numeroDeJugadas; k++) {
                             free(&(fichasEnemigas->guardadoJugadas[k]));
                         }
@@ -262,7 +290,8 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
 }
 
  // aplicarJugada: char** -> Jugada -> void;
- // Dada la jugada ya validada, la aplica sobre el tablero cambiando de color las fichas enemigas encerradas.
+ // Dada la jugada ya validada, la aplica sobre el tablero cambiando de color las fichas enemigas encerradas y asi completando
+ // el turno del jugador.
  void aplicarJugada(char **tablero, Jugada jugada, Resultado **resultado) {
     // Movimiento recien hecho del jugador.
     tablero[jugada.indiceFila][jugada.indiceColumna] = jugada.color;
@@ -274,13 +303,16 @@ Resultado* controlJugadaValida(char **tablero, Jugada jugada, Resultado **result
         // Liberando la memoria de las 'Jugada' structs.
         free(&((*resultado)->fichasCapturadas->guardadoJugadas[i]));
     }
-    // Liberando la memoria de la 'Jugadas' struct
+    // Liberando la memoria de la 'Jugadas' struct.
     free((*resultado)->fichasCapturadas->guardadoJugadas);
     free((*resultado)->fichasCapturadas);
  }
 
- // controlSalteoJugada:
- // Controlar que el salteo de jugada haya sido la unica opcion para avanzar con el juego.
+ // controlSalteoJugada: char** -> char -> Resultado** -> Resultado*;
+ // Controlar que el salteo de jugada haya sido la unica opcion para avanzar con el juego. Para ello hay que verificar que el jugador no
+ // haya podido colocar una ficha en ningun lugar del tablero. Recorreremos el tablero, nos posicionamos en los lugares donde hayan fichas
+ // de los jugadores y verificamos que a su alrededor hayan posiciones vacias. Luego, en esas posiciones vacias, simular jugadas y al menos
+ // una da como valida, significa que si habian movimientos posibles.
 Resultado* controlSalteoJugada(char **tablero, char colorJugador, Resultado **resultado) {
     Resultado *posibleResultado = malloc(sizeof(Resultado));
     bool jugadaPosible = false;
@@ -363,8 +395,10 @@ Resultado* controlSalteoJugada(char **tablero, char colorJugador, Resultado **re
     return *resultado;
 }
 
-// simularJuego: char** -> Jugadas* -> ;
-// Maneja la simulacion del juego. Si las jugadas son validas, las aplica.
+// simularJuego: char*** -> Jugadas* -> Resultado*;
+// Maneja la simulacion del juego. Manda a verificar las reglas de la jugada, y si las cumple, la aplica. Luego determina
+// si la simulacion del juego con las jugadas resulto en una partida incompleta o no, si hubo doble salto de turno, o si
+// hubo algun error durante el procesamiento de las jugadas.
 Resultado* simularJuego(char*** tablero, Jugadas* jugadas) {
     char color;
     int i = 0;
@@ -382,6 +416,7 @@ Resultado* simularJuego(char*** tablero, Jugadas* jugadas) {
             if (resultado->jugadaValida == false) {
                 continue;
             }
+
             // Validar que la jugada no este repetida, o sea, que no haya ya una ficha en esa posicion.
             resultado = jugadaRepetida(*tablero, jugada, &resultado);
 
@@ -411,7 +446,8 @@ Resultado* simularJuego(char*** tablero, Jugadas* jugadas) {
         i += 1;
     }
     
-    //
+    // Una vez terminado el recorrido de las jugadas y, si no se produjo ningun error, determinar si la partida 
+    // esta completa o no. Si hubo algun error en los movimientos lo reporta.
     resultado->partidaIncompleta = false;
 
     if (resultado->jugadaValida) {
@@ -455,8 +491,8 @@ Resultado* simularJuego(char*** tablero, Jugadas* jugadas) {
     return resultado;
 }
 
-//
-//
+// determinarGanador: char ** -> char;
+// Recibe el tablero y contando las fichas del tablero determina que jugador gano o si fue un empate.
 char determinarGanador(char **tablero) {
     int blancas = 0, negras = 0;
 
@@ -483,13 +519,15 @@ char determinarGanador(char **tablero) {
 
 // tableroInicial: void -> char**;
 // Creando el tablero inicial en forma de doble puntero.
-char** tableroInicial() {
+char** tableroInicial(void) {
     char **tablero = malloc(sizeof(char *) * 8);
 
+    // Asignando memoria para todas las casillas.
     for (int i = 0; i < 8; i++) {
         tablero[i] = malloc(sizeof(char) * 8);
     }
 
+    // Colocando las fichas vacias y las iniciales de los colores de los jugadores en el centro del tablero.
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             if ((i == 3 && j == 3) || (i == 4 && j == 4)) {
@@ -505,7 +543,7 @@ char** tableroInicial() {
     return tablero;
 }
 
-//leerArchivoEntrada: char* ->
+//leerArchivoEntrada: char* -> Archivo*;
 // Leer el archivo para desestructurar la informacion de la partida.
 Archivo* leerArchivoEntrada(char *nombreArchivo) {
     Archivo *datosArchivo = malloc(sizeof(Archivo));
@@ -527,15 +565,12 @@ Archivo* leerArchivoEntrada(char *nombreArchivo) {
     datosArchivo->jugadasLeidas->numeroDeJugadas = jugadas->numeroDeJugadas;
     datosArchivo->jugadasLeidas->guardadoJugadas = jugadas->guardadoJugadas;
 
-    // Liberacion de los espacios de memoria asignados.
-    // liberarMemoria(datosArchivo->jugadores, datosArchivo->jugadasLeidas);
-
     fclose(archivo);
     return datosArchivo;
 }
 
-//
-//
+// volcarTableroEnArchivo: char* -> char** -> char -> void;
+// Abrir el archivo de salida para guardar la informacion del tablero y del color del jugador que le toca mover.
 void volcarTableroEnArchivo(char* nombreArchivo, char** tablero, char colorSiguiente) {
     FILE *archivoSalida;
     archivoSalida = fopen(nombreArchivo, "w");
@@ -555,10 +590,13 @@ void volcarTableroEnArchivo(char* nombreArchivo, char** tablero, char colorSigui
     // Pasando el color del jugador que sigue.
     fputc(colorSiguiente, archivoSalida);
     
-
     fclose(archivoSalida);
 }
 
+// main: int -> char** -> int;
+// Maneja la logica general. Manda a desestructurar el archivo, crea el tablero, simula el juego, muestra por consola
+// el tablero, determina el ganador o no y en base a eso escribe el archivo de salida y libera la memoria almacenada
+// restante.
 int main(int argc, char **argv) {
     Archivo *datosArchivo = malloc(sizeof(Archivo));
     Resultado *resultado = malloc(sizeof(Resultado));
@@ -574,17 +612,16 @@ int main(int argc, char **argv) {
     resultado = simularJuego(&tablero, datosArchivo->jugadasLeidas);
 
     printf("  ABCDEFGH \n");
-        printf(" ---------- \n");
-        for (int j = 0; j < 8; j++) {
-            printf("%d|",j+1);
-            for (int k = 0; k < 8; k++) {
-                printf("%c", tablero[j][k]);
-            }
-            printf("|%d\n",j+1);
+    printf(" ---------- \n");
+    for (int j = 0; j < 8; j++) {
+        printf("%d|",j+1);
+        for (int k = 0; k < 8; k++) {
+            printf("%c", tablero[j][k]);
         }
-        printf(" ---------- \n");
-        printf("  ABCDEFGH \n\n");
-
+        printf("|%d\n",j+1);
+    }
+    printf(" ---------- \n");
+    printf("  ABCDEFGH \n\n");
 
     
     if (resultado->partidaValida) {
@@ -619,7 +656,8 @@ int main(int argc, char **argv) {
         
     }
     
-
+    // Liberacion de los espacios de memoria asignados.
+    liberarMemoria(datosArchivo->jugadores, datosArchivo->jugadasLeidas, resultado);
 
     return 0;
 }
