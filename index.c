@@ -21,6 +21,7 @@ funciones menos dependientes unas de otras. Tambien guarda si el archivo fue abi
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 
 typedef struct {
     char color;
@@ -592,6 +593,12 @@ void volcarTableroEnArchivo(char* nombreArchivo, char** tablero, char colorSigui
     fclose(archivoSalida);
 }
 
+void controladorTests();
+
+int sumaa(int a, int b) {
+    return a + b;
+}
+
 // main: int -> char** -> int;
 // Maneja la logica general. Manda a desestructurar el archivo, crea el tablero, simula el juego, muestra por consola
 // el tablero, determina el ganador o no y en base a eso escribe el archivo de salida y libera la memoria almacenada
@@ -658,5 +665,92 @@ int main(int argc, char **argv) {
     // Liberacion de los espacios de memoria asignados.
     liberarMemoria(datosArchivo->jugadores, datosArchivo->jugadasLeidas, resultado);
 
+    // TESTING
+    controladorTests();
+
     return 0;
+}
+
+
+/* TESTEANDO LAS FUNCIONES */
+
+void test_eliminarSaltoDeLinea() {
+
+}
+
+void test_leerJugadores() {
+    
+}
+
+void tets_leerJugadas() {
+    
+}
+
+void test_jugadaDentroTablero() {
+    
+}
+
+void test_jugadaRepetida() {
+    
+}
+
+void test_controlJugadaValida() {
+    
+}
+
+void test_controlSalteoJugada() {
+    
+}
+
+void test_simularJuego() {
+    
+}
+
+void test_determinarGanador() {
+    
+}
+
+void test_tableroInicial() {
+    
+}
+
+void test_leerArchivoEntrada() {
+    
+}
+
+void controladorTests(void) {
+    // eliminarSaltoDeLinea char*
+    test_eliminarSaltoDeLinea();
+
+    // leerJugadores Jugadores*
+    test_leerJugadores();
+
+    // leerJugadas Jugadas*
+    tets_leerJugadas();
+
+    // jugadaDentroTablero Resultado*
+    test_jugadaDentroTablero();
+
+    // jugadaRepetida Resultado*
+    test_jugadaRepetida();
+
+    // controlJugadaValida Resultado*
+    test_controlJugadaValida();
+
+    // controlSalteoJugada Resultado*
+    test_controlSalteoJugada();
+
+    // simularJuego Resultado*
+    test_simularJuego();
+
+    // determinarGanador char
+    test_determinarGanador();
+
+    //tableroInicial char**
+    test_tableroInicial();
+
+    // leerArchivoEntrada Archivo*
+    test_leerArchivoEntrada();
+
+    // main int
 }
