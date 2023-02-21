@@ -1,7 +1,14 @@
+# ----------- DISEÑO DE DATOS -----------
+# El TABLERO esta representado por una lista de filas, y a su vez cada fila tiene una lista de casillas donde se guardan Strings.
+# Estos son caracteres representando a las fichas de los jugadores ('B' o 'N') o 'X' que representa una casilla vacía.
+# Cada JUGADA se represennta como una Tupla que contiene el color del jugador y la posición en la fila de la casilla respectivamente.
+# El nivel de la maquina es un string de un entero que luego va a decidir que serie de pasos seguir.
+# ---------------------------------------
+
 import sys
 import random
 
-# desestructurarJugada:
+# desestructurarJugada: Tuple[String, String] -> Tuple[String, Int, Int]
 # Funcion auxiliar para desestructurar el formato de la jugada en color, indice de la columna e indice de la fila.
 def desestructurarJugada(jugada):
     (colorDelJugador, posicionDeLaJugada) = jugada
@@ -10,7 +17,7 @@ def desestructurarJugada(jugada):
 
     return (colorDelJugador, indiceDeLaFila, indiceDeLaColumna)
 
-# validarJugadaDentroTablero:
+# validarJugadaDentroTablero: Tuple[String, String] -> Dict[String, Boolean | String]
 # Validar que la jugada este dentro del tablero.
 def validarJugadaDentroTablero(jugada):
     (color, indiceDeLaFila, indiceDeLaColumna) = desestructurarJugada(jugada)
@@ -26,7 +33,7 @@ def validarJugadaDentroTablero(jugada):
         'jugadaValida': True,
     }
 
-# controlarJugadaRepetida:
+# controlarJugadaRepetida: List[List[String]] -> Tuple[String, String] -> Dict[String, Boolean | String]
 # Verifica si la posicion de la jugada ya esta ocupada.
 def controlarJugadaRepetida(tablero, jugada):
     (color, indiceDeLaFila, indiceDeLaColumna) = desestructurarJugada(jugada)
@@ -42,7 +49,7 @@ def controlarJugadaRepetida(tablero, jugada):
         'jugadaValida': True,
     }
 
-# controlarJugadaValida:
+# controlarJugadaValida: List[List[String]] -> Tuple[String, String] -> Dict[String, Boolean | String | List[Tuple[Int, Int]]]
 # Determina si la casilla elegida en la jugada coincide con tener al menos una ficha del oponente alrededor de la nueva ficha
 # y si, a su vez, hay una ficha aliada en direccion vertical, horizontal o diagonal que, junto con la ficha a colocar, encierre fichas enemigas.
 def controlarJugadaValida(tablero, jugada):
@@ -103,7 +110,7 @@ def controlarJugadaValida(tablero, jugada):
         'fichasEncerradas': fichasEncerradas
     }
 
-# aplicarJugada:
+# aplicarJugada: List[List[String]] -> Tuple[String, String] -> None
 # Dada una jugada valida y un conjunto de fichas enemigas encerradas, aplica la jugada al tablero y cambia de color las fichas enemigas encerradas.
 def aplicarJugada(tablero, jugada, fichasEncerradas):
     (colorDelJugador, indiceDeLaFila, indiceDeLaColumna) = desestructurarJugada(jugada)
@@ -115,7 +122,7 @@ def aplicarJugada(tablero, jugada, fichasEncerradas):
     for (i, j) in fichasEncerradas:
         tablero[i][j] = colorDelJugador
 
-# controlSalteoJugada:
+# controlSalteoJugada: List[List[String]] -> String -> Dict[String, Boolean | String | List[Tuple[Tuple[String, String], List[Tuple[Int, Int]]]]
 # Verificar que el jugador que salteo el turno no tenia otra opcion, es decir, no podia realizar ninguna jugada valida.
 def controlSalteoJugada(tablero, colorDelJugador):
     seEncontroJugadaPosible = False
@@ -162,8 +169,8 @@ def controlSalteoJugada(tablero, colorDelJugador):
         'jugadaValida': True
     }
 
-# validaciones:
-# 
+# validaciones: List[List[String]] -> Tuple[String, String] -> Tuple[Boolean, Dict[String, Boolean | String | List[Tuple[Tuple[String, String], List[Tuple[Int, Int]]]]]]
+# Aca se manejan las validaciones de las jugadas. Reglas del juego y simples como no salirse del tablero.
 def validaciones(tablero, jugada):
     # Mientras la jugada no sea un salto de turno.
     if jugada[1] != '':
@@ -196,8 +203,7 @@ def validaciones(tablero, jugada):
 
     return (True, resultado)
 
-
-# pedirJugadas:
+# pedirJugadas: List[List[String]] -> String -> Dict[String, Boolean | String | List[Tuple[Tuple[String, String], List[Tuple[Int, Int]]]]]
 # Pedirle al usuario una jugada y validarla. Seguir pidiendo si la jugada no es valida.
 def pedirJugadas(tablero, colorJugador):
     jugadaValida = False
@@ -213,7 +219,7 @@ def pedirJugadas(tablero, colorJugador):
 
     return resultado
 
-# botDificultadCero:
+# botDificultadCero: List[List[String]] -> String -> None
 # Conseguir todas las jugadas posibles para el Bot y elegir una random.
 def botDificultadCero(tablero, colorBot):
     # Usando esta funcion logramos captar todas las posibles jugadas que se pueden realizar usando el color del Bot.
@@ -227,12 +233,12 @@ def botDificultadCero(tablero, colorBot):
         validaciones(tablero, jugadaRandom[0])
         print(f'Bot: "Esto se ve dificil, dejame pensar... {jugadaRandom[0][1]}."')
 
-# segundoItemDeTupla:
+# segundoItemDeTupla: Tuple[Tuple[String, String], List[Tuple[Int, Int]]] -> None
 # Funcion auxiliar para conseguir la lista de fichas que encierra cada jugada.
 def segundoItemDeTupla(tupla):
     return len(tupla[1])
 
-# botDificultadUno:
+# botDificultadUno: List[List[String]] -> String -> None
 # Conseguir todas las jugadas posibles para el Bot y elegir la que mas fichas enemigas encierre.
 def botDificultadUno(tablero, colorBot):
     # Usando esta funcion logramos captar todas las posibles jugadas que se pueden realizar usando el color del Bot.
@@ -244,7 +250,7 @@ def botDificultadUno(tablero, colorBot):
         validaciones(tablero, mejorJugada[0])
         print(f'Bot: "Mi jugada sera... {mejorJugada[0][1]}!"')
 
-# controlarFinJuego:
+# controlarFinJuego: List[List[String]] -> String -> Boolean
 # Controlar si se pueden hacer mas jugadas. Controlar si se puede saltear el turno y luego
 # el otro jugador tiene jugadas posibles.
 def controlarFinJuego(tablero, colorSiguiente):
@@ -263,8 +269,8 @@ def controlarFinJuego(tablero, colorSiguiente):
     # Sino, se puede  seguir jugando.
     return False
 
-# administrarJuego:
-# Controla de quien es el turno y muestra del tablero
+# administrarJuego: List[List[String]] -> String -> String -> String -> None
+# Controla de quien es el turno y muestra del tablero.
 def administrarJuego(tablero, colorSiguiente, colorJugador, dificultad):
     finJuego = False
     resultado = {'jugadaValida': True}
@@ -294,10 +300,8 @@ def administrarJuego(tablero, colorSiguiente, colorJugador, dificultad):
         # salto de turno y luego el siguiente jugador puede continuar.
         finJuego = controlarFinJuego(tablero, colorSiguiente)
 
-
 # leerTablero: String -> Tuple(List[List[String]], String)
-# Lee el tablero del archivo y el siguiente turno en la partida. Luego devuelve el tablero
-# y el color.
+# Lee el tablero del archivo y el siguiente turno en la partida. Luego devuelve el tablero y el color.
 def leerArchivo(nombreArchivo):
     tablero = []
     
@@ -323,8 +327,8 @@ def mostrarTablero(tablero):
         print()
     print()
 
-# definirGanador:
-# 
+# definirGanador: List[List[String]] -> String
+# Contar la cantidad de fichas que se encuentran en el tablero y, en base a eso, determinar el ganador de la partida.
 def definirGanador(tablero):
     fichasBlancas = 0
     fichasNegras = 0
@@ -345,8 +349,9 @@ def definirGanador(tablero):
     else:
         return 'Empate'
 
-# main:
-# 
+# main: None -> None
+# Punto de entrada del programa. Manejo de llamados. Recibe la 'configuracion' de la partida. Lee el tablero y el jugadorSiguiente.
+# Llama a las funciones para manejar los turnos y jugadas. Resuelve el estado final de la partida.
 def main():
     if len(sys.argv) != 4:
         print("Por favor, al correr el programa asegurese de pasar todos los argumentos.")
@@ -367,5 +372,6 @@ def main():
     else:
         print('Ha habido un empate.')
 
+# No ejecutar codigo al importar funciones desde este archivo
 if __name__ == '__main__':
     main()
